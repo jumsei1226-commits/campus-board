@@ -160,10 +160,10 @@ export default function AssignmentsPage() {
         {message && <Notice tone={message.tone}>{message.text}</Notice>}
 
         {isOpen && (
-          <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <section className="rounded-3xl border border-[#E5E7EB] bg-white p-5 shadow-[0_18px_42px_rgba(15,23,42,0.07)]">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-bold">{editingId ? "課題を編集" : "課題を追加"}</h2>
-              <button onClick={() => setIsOpen(false)} className="grid size-10 place-items-center rounded-lg hover:bg-slate-100" type="button">
+              <h2 className="text-lg font-bold tracking-tight text-[#0F172A]">{editingId ? "課題を編集" : "課題を追加"}</h2>
+              <button onClick={() => setIsOpen(false)} className="grid size-10 place-items-center rounded-xl text-[#64748B] hover:bg-slate-100" type="button">
                 <X size={20} />
               </button>
             </div>
@@ -190,7 +190,7 @@ export default function AssignmentsPage() {
               <Field label="メモ">
                 <Textarea value={form.memo} onChange={(event) => setForm({ ...form, memo: event.target.value })} />
               </Field>
-              <label className="flex min-h-12 items-center gap-3 rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-700">
+              <label className="flex min-h-12 items-center gap-3 rounded-xl border border-[#E5E7EB] bg-white px-3 text-sm font-bold text-[#0F172A]">
                 <input type="checkbox" checked={form.is_completed} onChange={(event) => setForm({ ...form, is_completed: event.target.checked })} className="size-5" />
                 完了済みにする
               </label>
@@ -210,16 +210,16 @@ export default function AssignmentsPage() {
             {assignments.map((item) => {
               const tone = getDeadlineTone(item.due_date, item.is_completed);
               return (
-                <article key={item.id} className={`rounded-lg border bg-white p-4 shadow-sm ${tone === "今日" || tone === "期限切れ" ? "border-red-200 ring-2 ring-red-50" : tone === "前日" || tone === "3日前" ? "border-amber-200 ring-2 ring-amber-50" : "border-slate-200"}`}>
+                <article key={item.id} className={`rounded-2xl border bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.05)] ${tone === "今日" || tone === "期限切れ" ? "border-red-200 bg-red-50/40 ring-2 ring-red-50" : tone === "前日" || tone === "3日前" ? "border-amber-200 bg-amber-50/40 ring-2 ring-amber-50" : "border-[#E5E7EB]"}`}>
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <h3 className={`text-lg font-bold ${item.is_completed ? "text-slate-400 line-through" : "text-slate-950"}`}>{item.title}</h3>
+                        <h3 className={`text-lg font-bold tracking-tight ${item.is_completed ? "text-slate-400 line-through" : "text-[#0F172A]"}`}>{item.title}</h3>
                         <Badge tone={tone} />
-                        {isNotificationCandidate(item) && <span className="rounded-md bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700">通知予定</span>}
+                        {isNotificationCandidate(item) && <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-[#2563EB]">通知予定</span>}
                       </div>
-                      <p className="mt-1 text-sm text-slate-500">{item.classes?.title ?? "授業未設定"} / 締切 {item.due_date} / 優先度 {priorityLabel(item.priority)}</p>
-                      {item.memo && <p className="mt-3 text-sm text-slate-600">{item.memo}</p>}
+                      <p className="mt-1.5 text-sm leading-6 text-[#64748B]">{item.classes?.title ?? "授業未設定"} / 締切 {item.due_date} / 優先度 {priorityLabel(item.priority)}</p>
+                      {item.memo && <p className="mt-3 text-sm leading-6 text-[#64748B]">{item.memo}</p>}
                     </div>
                     <div className="grid grid-cols-3 gap-2 sm:flex">
                       <SecondaryButton onClick={() => toggleDone(item)} className="min-h-10 px-3" type="button"><Check size={16} /></SecondaryButton>
@@ -244,11 +244,11 @@ function priorityLabel(priority: Priority) {
 function Badge({ tone }: { tone: string }) {
   const className =
     tone === "今日" || tone === "期限切れ"
-      ? "bg-red-50 text-red-700"
+      ? "bg-red-100 text-[#EF4444]"
       : tone === "前日" || tone === "3日前"
-        ? "bg-amber-50 text-amber-700"
-        : "bg-slate-100 text-slate-600";
-  return <span className={`rounded-md px-2 py-1 text-xs font-bold ${className}`}>{tone}</span>;
+        ? "bg-amber-100 text-[#F59E0B]"
+        : "bg-slate-100 text-[#64748B]";
+  return <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${className}`}>{tone}</span>;
 }
 
 function getErrorMessage(error: unknown) {

@@ -145,10 +145,10 @@ export default function TimetablePage() {
         {message && <Notice tone={message.tone}>{message.text}</Notice>}
 
         {isOpen && (
-          <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <section className="rounded-3xl border border-[#E5E7EB] bg-white p-5 shadow-[0_18px_42px_rgba(15,23,42,0.07)]">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-bold">{editingId ? "授業を編集" : "授業を追加"}</h2>
-              <button onClick={() => setIsOpen(false)} className="grid size-10 place-items-center rounded-lg hover:bg-slate-100" type="button">
+              <h2 className="text-lg font-bold tracking-tight text-[#0F172A]">{editingId ? "授業を編集" : "授業を追加"}</h2>
+              <button onClick={() => setIsOpen(false)} className="grid size-10 place-items-center rounded-xl text-[#64748B] hover:bg-slate-100" type="button">
                 <X size={20} />
               </button>
             </div>
@@ -194,13 +194,13 @@ export default function TimetablePage() {
           <>
             <div className="grid gap-3 md:hidden">
               {classes.map((item) => (
-                <article key={item.id} className="rounded-lg border border-blue-100 bg-white p-4 shadow-sm">
+                <article key={item.id} className="rounded-2xl border border-blue-100 bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-sm font-bold text-blue-700">{weekdays.find((day) => day.value === item.weekday)?.label}曜 {item.period}限</p>
-                      <h3 className="mt-1 text-lg font-bold text-slate-950">{item.title}</h3>
-                      <p className="mt-1 text-sm text-slate-500">{[item.room, item.teacher].filter(Boolean).join(" / ") || "教室・教員未設定"}</p>
-                      {item.memo && <p className="mt-2 text-sm text-slate-600">{item.memo}</p>}
+                      <p className="text-sm font-bold text-[#2563EB]">{weekdays.find((day) => day.value === item.weekday)?.label}曜 {item.period}限</p>
+                      <h3 className="mt-1 text-lg font-bold tracking-tight text-[#0F172A]">{item.title}</h3>
+                      <p className="mt-1 text-sm leading-6 text-[#64748B]">{[item.room, item.teacher].filter(Boolean).join(" / ") || "教室・教員未設定"}</p>
+                      {item.memo && <p className="mt-2 text-sm leading-6 text-[#64748B]">{item.memo}</p>}
                     </div>
                   </div>
                   <div className="mt-4 grid grid-cols-2 gap-2">
@@ -210,25 +210,25 @@ export default function TimetablePage() {
                 </article>
               ))}
             </div>
-            <div className="hidden overflow-x-auto rounded-lg border border-slate-200 bg-white md:block">
+            <div className="hidden overflow-x-auto rounded-3xl border border-[#E5E7EB] bg-white shadow-[0_18px_42px_rgba(15,23,42,0.07)] md:block">
               <div className="min-w-[760px]">
-              <div className="grid grid-cols-[72px_repeat(7,1fr)] border-b border-slate-200 bg-slate-50 text-center text-sm font-bold text-slate-600">
+              <div className="grid grid-cols-[72px_repeat(7,1fr)] border-b border-[#E5E7EB] bg-slate-50 text-center text-sm font-bold text-[#64748B]">
                 <div className="p-3">時限</div>
                 {weekdays.map((day) => <div key={day.value} className="p-3">{day.label}</div>)}
               </div>
               {periods.map((period) => (
                 <div key={period} className="grid grid-cols-[72px_repeat(7,1fr)] border-b border-slate-100 last:border-b-0">
-                  <div className="grid place-items-center bg-slate-50 p-2 text-sm font-bold text-slate-500">{period}限</div>
+                  <div className="grid place-items-center bg-slate-50 p-2 text-sm font-bold text-[#64748B]">{period}限</div>
                   {weekdays.map((day) => {
                     const item = classes.find((entry) => entry.weekday === day.value && entry.period === period);
                     return (
                       <div key={day.value} className="min-h-32 border-l border-slate-100 p-2">
                         {item && (
-                          <article className="grid h-full gap-2 rounded-lg bg-blue-50 p-3">
+                          <article className="grid h-full gap-2 rounded-2xl bg-blue-50 p-3 ring-1 ring-blue-100">
                             <div>
-                              <h3 className="font-bold text-blue-950">{item.title}</h3>
-                              <p className="mt-1 text-xs text-slate-600">{item.room || "教室未設定"}</p>
-                              <p className="text-xs text-slate-600">{item.teacher || "教員未設定"}</p>
+                              <h3 className="font-bold text-[#0F172A]">{item.title}</h3>
+                              <p className="mt-1 text-xs text-[#64748B]">{item.room || "教室未設定"}</p>
+                              <p className="text-xs text-[#64748B]">{item.teacher || "教員未設定"}</p>
                             </div>
                             <div className="flex gap-2 self-end">
                               <SecondaryButton onClick={() => startEdit(item)} className="min-h-10 flex-1 px-2" type="button"><Edit3 size={16} /></SecondaryButton>

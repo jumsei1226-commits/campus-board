@@ -53,22 +53,22 @@ export default function DashboardPage() {
           <LoadingBlock label="ダッシュボードを読み込み中..." />
         ) : (
           <>
-            <section className="rounded-lg border border-blue-100 bg-white p-4 shadow-sm">
+            <section className="rounded-3xl border border-blue-100 bg-white p-5 shadow-[0_18px_42px_rgba(15,23,42,0.07)]">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-bold text-blue-700">今日やること</p>
-                  <h2 className="mt-1 text-xl font-bold text-slate-950">授業 {todayClasses.length}件 / 今日締切 {todayDue.length}件</h2>
+                  <p className="text-sm font-bold text-[#2563EB]">今日やること</p>
+                  <h2 className="mt-1 text-2xl font-bold tracking-tight text-[#0F172A]">授業 {todayClasses.length}件 / 今日締切 {todayDue.length}件</h2>
                 </div>
-                <span className="grid size-12 shrink-0 place-items-center rounded-lg bg-blue-50 text-blue-700">
+                <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-blue-50 text-[#2563EB]">
                   <Clock3 size={24} />
                 </span>
               </div>
               {todayDue.length > 0 && (
                 <div className="mt-4 grid gap-2">
                   {todayDue.map((item) => (
-                    <div key={item.id} className="rounded-lg border border-red-200 bg-red-50 p-3">
-                      <p className="font-bold text-red-800">{item.title}</p>
-                      <p className="mt-1 text-sm text-red-700">{item.classes?.title ?? "授業未設定"} / 今日が締切</p>
+                    <div key={item.id} className="rounded-2xl border border-red-200 bg-red-50 p-3.5">
+                      <p className="font-bold text-[#0F172A]">{item.title}</p>
+                      <p className="mt-1 text-sm font-semibold text-[#EF4444]">{item.classes?.title ?? "授業未設定"} / 今日が締切</p>
                     </div>
                   ))}
                 </div>
@@ -88,10 +88,10 @@ export default function DashboardPage() {
               ) : (
                 <div className="grid gap-3">
                   {todayClasses.map((item) => (
-                    <div key={item.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                      <p className="text-sm font-semibold text-blue-700">{item.period}限</p>
-                      <h3 className="mt-1 text-lg font-bold">{item.title}</h3>
-                      <p className="mt-1 text-sm text-slate-500">{[item.room, item.teacher].filter(Boolean).join(" / ") || "教室・教員未設定"}</p>
+                    <div key={item.id} className="rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+                      <p className="text-sm font-bold text-[#2563EB]">{item.period}限</p>
+                      <h3 className="mt-1 text-lg font-bold text-[#0F172A]">{item.title}</h3>
+                      <p className="mt-1 text-sm text-[#64748B]">{[item.room, item.teacher].filter(Boolean).join(" / ") || "教室・教員未設定"}</p>
                     </div>
                   ))}
                 </div>
@@ -133,12 +133,12 @@ export default function DashboardPage() {
 function AssignmentRow({ item, strong = false }: { item: Assignment; strong?: boolean }) {
   const tone = getDeadlineTone(item.due_date);
   return (
-    <div className={`flex items-start justify-between gap-3 rounded-lg border bg-white p-4 shadow-sm ${strong ? "border-amber-200 ring-2 ring-amber-50" : "border-slate-200"}`}>
+    <div className={`flex items-start justify-between gap-3 rounded-2xl border bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.05)] ${strong ? "border-amber-200 ring-2 ring-amber-50" : "border-[#E5E7EB]"}`}>
       <div>
-        <h3 className="font-bold">{item.title}</h3>
-        <p className="mt-1 text-sm text-slate-500">{item.classes?.title ?? "授業未設定"} / 締切 {item.due_date}</p>
+        <h3 className="font-bold text-[#0F172A]">{item.title}</h3>
+        <p className="mt-1 text-sm text-[#64748B]">{item.classes?.title ?? "授業未設定"} / 締切 {item.due_date}</p>
       </div>
-      <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700">
+      <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${strong ? "bg-amber-50 text-[#F59E0B]" : "bg-blue-50 text-[#2563EB]"}`}>
         <Clock3 size={14} />
         {tone}
       </span>
@@ -148,10 +148,10 @@ function AssignmentRow({ item, strong = false }: { item: Assignment; strong?: bo
 
 function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4">
-      <div className="mb-3 text-blue-600">{icon}</div>
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className="mt-1 text-2xl font-bold">{value}</p>
+    <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+      <div className="mb-3 text-[#2563EB]">{icon}</div>
+      <p className="text-sm font-semibold text-[#64748B]">{label}</p>
+      <p className="mt-1 text-2xl font-bold tracking-tight text-[#0F172A]">{value}</p>
     </div>
   );
 }

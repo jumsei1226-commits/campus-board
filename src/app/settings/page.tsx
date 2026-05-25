@@ -44,12 +44,12 @@ export default function SettingsPage() {
         <PageHeader title="設定" description="プロフィールと接続状態を確認できます。" />
 
         {!isSupabaseConfigured && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
             Supabase環境変数が未設定です。.env.local を作成するとログインとデータ保存が使えます。
           </div>
         )}
 
-        <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <section className="rounded-3xl border border-[#E5E7EB] bg-white p-5 shadow-[0_18px_42px_rgba(15,23,42,0.07)]">
           <form onSubmit={save} className="grid gap-4 sm:grid-cols-2">
             <Field label="表示名">
               <Input value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="山田 太郎" />
@@ -66,7 +66,7 @@ export default function SettingsPage() {
                 保存する
               </Button>
             </div>
-            {message && <p className="sm:col-span-2 rounded-lg bg-blue-50 p-3 text-sm text-blue-800">{message}</p>}
+            {message && <p className="sm:col-span-2 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm font-bold text-blue-800">{message}</p>}
           </form>
         </section>
       </div>
