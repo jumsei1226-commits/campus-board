@@ -38,6 +38,11 @@ create index if not exists classes_user_weekday_period_idx on public.classes(use
 create index if not exists assignments_user_due_date_idx on public.assignments(user_id, due_date);
 create index if not exists assignments_user_completed_idx on public.assignments(user_id, is_completed);
 
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on public.profiles to authenticated;
+grant select, insert, update, delete on public.classes to authenticated;
+grant select, insert, update, delete on public.assignments to authenticated;
+
 create or replace function public.set_updated_at()
 returns trigger as $$
 begin

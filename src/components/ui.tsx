@@ -53,9 +53,28 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 
 export function EmptyState({ title, description }: { title: string; description: string }) {
   return (
-    <div className="rounded-lg border border-dashed border-slate-200 bg-white p-6 text-center">
+    <div className="rounded-lg border border-dashed border-blue-200 bg-white p-6 text-center">
       <p className="font-semibold text-slate-800">{title}</p>
       <p className="mt-1 text-sm text-slate-500">{description}</p>
+    </div>
+  );
+}
+
+export function Notice({ tone = "info", children }: { tone?: "info" | "success" | "error"; children: ReactNode }) {
+  const className =
+    tone === "success"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+      : tone === "error"
+        ? "border-red-200 bg-red-50 text-red-800"
+        : "border-blue-200 bg-blue-50 text-blue-800";
+
+  return <div className={`rounded-lg border p-3 text-sm font-semibold ${className}`}>{children}</div>;
+}
+
+export function LoadingBlock({ label = "読み込み中..." }: { label?: string }) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-6 text-center text-sm font-semibold text-slate-500">
+      {label}
     </div>
   );
 }

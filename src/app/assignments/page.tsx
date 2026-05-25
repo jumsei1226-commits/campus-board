@@ -3,7 +3,7 @@
 import { Check, Edit3, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
-import { Button, EmptyState, Field, Input, PageHeader, SecondaryButton, Select, Textarea } from "@/components/ui";
+import { Button, EmptyState, Field, Input, LoadingBlock, Notice, PageHeader, SecondaryButton, Select, Textarea } from "@/components/ui";
 import { getDeadlineTone, isNotificationCandidate, todayKey } from "@/lib/date";
 import { supabase } from "@/lib/supabase";
 import type { Assignment, ClassItem, Priority } from "@/lib/types";
@@ -32,14 +32,26 @@ export default function AssignmentsPage() {
   const [form, setForm] = useState<FormState>(initialForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ tone: "success" | "error" | "info"; text: string } | null>(null);
 
   async function load() {
-    const [{ data: assignmentData }, { data: classData }] = await Promise.all([
+    setLoading(true);
+    const [{ data: assignmentData, error: assignmentError }, { data: classData, error: classError }] = await Promise.all([
       supabase.from("assignments").select("*, classes(id,title)").order("due_date"),
       supabase.from("classes").select("*").order("weekday").order("period"),
     ]);
-    setAssignments((assignmentData as Assignment[]) ?? []);
-    setClasses(classData ?? []);
+    if (assignmentError || classError) {
+      console.error("Failed to load assignments page data", { assignmentError, classError });
+      setMessage({ tone: "error", text: `データの読み込みに失敗しました: ${assignmentError?.message ?? classError?.message}` });
+      setAssignments([]);
+      setClasses([]);
+    } else {
+      setAssignments((assignmentData as Assignment[]) ?? []);
+      setClasses(classData ?? []);
+    }
+    setLoading(false);
   }
 
   useEffect(() => {
@@ -50,6 +62,7 @@ export default function AssignmentsPage() {
   function startCreate() {
     setForm(initialForm);
     setEditingId(null);
+    setMessage(null);
     setIsOpen(true);
   }
 
@@ -63,38 +76,70 @@ export default function AssignmentsPage() {
       memo: item.memo ?? "",
     });
     setEditingId(item.id);
+    setMessage(null);
     setIsOpen(true);
   }
 
   async function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const { data: userData } = await supabase.auth.getUser();
-    const payload = {
-      title: form.title,
-      class_id: form.class_id || null,
-      due_date: form.due_date,
-      priority: form.priority,
-      is_completed: form.is_completed,
-      memo: form.memo || null,
-    };
+    setSaving(true);
+    setMessage(null);
 
-    if (editingId) {
-      await supabase.from("assignments").update(payload).eq("id", editingId);
-    } else if (userData.user) {
-      await supabase.from("assignments").insert({ ...payload, user_id: userData.user.id });
+    try {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      if (!userData.user) throw new Error("ログイン中のユーザーIDを取得できませんでした。もう一度ログインしてください。");
+
+      const payload = {
+        title: form.title.trim(),
+        class_id: form.class_id || null,
+        due_date: form.due_date,
+        priority: form.priority,
+        is_completed: form.is_completed,
+        memo: form.memo.trim() || null,
+      };
+
+      if (!payload.title) throw new Error("課題名を入力してください。");
+
+      if (editingId) {
+        const { error } = await supabase.from("assignments").update(payload).eq("id", editingId).select("id").single();
+        if (error) throw error;
+        setMessage({ tone: "success", text: "課題を更新しました。" });
+      } else {
+        const { error } = await supabase.from("assignments").insert({ ...payload, user_id: userData.user.id }).select("id").single();
+        if (error) throw error;
+        setMessage({ tone: "success", text: "課題を追加しました。" });
+      }
+
+      setIsOpen(false);
+      setForm(initialForm);
+      await load();
+    } catch (error) {
+      console.error("Failed to save assignment", error);
+      setMessage({ tone: "error", text: `課題を保存できませんでした: ${getErrorMessage(error)}` });
+    } finally {
+      setSaving(false);
     }
-
-    setIsOpen(false);
-    await load();
   }
 
   async function toggleDone(item: Assignment) {
-    await supabase.from("assignments").update({ is_completed: !item.is_completed }).eq("id", item.id);
+    const { error } = await supabase.from("assignments").update({ is_completed: !item.is_completed }).eq("id", item.id);
+    if (error) {
+      console.error("Failed to update assignment status", error);
+      setMessage({ tone: "error", text: `課題の状態を変更できませんでした: ${error.message}` });
+      return;
+    }
     await load();
   }
 
   async function remove(id: string) {
-    await supabase.from("assignments").delete().eq("id", id);
+    const { error } = await supabase.from("assignments").delete().eq("id", id);
+    if (error) {
+      console.error("Failed to delete assignment", error);
+      setMessage({ tone: "error", text: `課題を削除できませんでした: ${error.message}` });
+      return;
+    }
+    setMessage({ tone: "success", text: "課題を削除しました。" });
     await load();
   }
 
@@ -111,6 +156,8 @@ export default function AssignmentsPage() {
             </Button>
           }
         />
+
+        {message && <Notice tone={message.tone}>{message.text}</Notice>}
 
         {isOpen && (
           <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -148,20 +195,22 @@ export default function AssignmentsPage() {
                 完了済みにする
               </label>
               <div className="sm:col-span-2">
-                <Button type="submit" className="w-full sm:w-auto">{editingId ? "更新する" : "登録する"}</Button>
+                <Button disabled={saving} type="submit" className="w-full sm:w-auto">{saving ? "保存中..." : editingId ? "更新する" : "登録する"}</Button>
               </div>
             </form>
           </section>
         )}
 
-        {assignments.length === 0 ? (
-          <EmptyState title="課題がまだありません" description="締切日を入れると近い順に並びます。" />
+        {loading ? (
+          <LoadingBlock label="課題を読み込み中..." />
+        ) : assignments.length === 0 ? (
+          <EmptyState title="課題がまだ登録されていません" description="課題を追加すると、締切が近い順にここへ並びます。" />
         ) : (
           <div className="grid gap-3">
             {assignments.map((item) => {
               const tone = getDeadlineTone(item.due_date, item.is_completed);
               return (
-                <article key={item.id} className={`rounded-lg border bg-white p-4 ${tone === "今日" || tone === "期限切れ" ? "border-red-200" : tone === "前日" || tone === "3日前" ? "border-amber-200" : "border-slate-200"}`}>
+                <article key={item.id} className={`rounded-lg border bg-white p-4 shadow-sm ${tone === "今日" || tone === "期限切れ" ? "border-red-200 ring-2 ring-red-50" : tone === "前日" || tone === "3日前" ? "border-amber-200 ring-2 ring-amber-50" : "border-slate-200"}`}>
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
@@ -200,4 +249,10 @@ function Badge({ tone }: { tone: string }) {
         ? "bg-amber-50 text-amber-700"
         : "bg-slate-100 text-slate-600";
   return <span className={`rounded-md px-2 py-1 text-xs font-bold ${className}`}>{tone}</span>;
+}
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error && "message" in error) return String(error.message);
+  return "詳細不明のエラーです。";
 }

@@ -1,0 +1,19 @@
+{
+  "name": "Campus Board",
+  "short_name": "Campus Board",
+  "description": "大学生活の時間割と課題をまとめるMVPアプリ",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/campus-board-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
