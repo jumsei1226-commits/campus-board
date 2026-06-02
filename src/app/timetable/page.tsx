@@ -4,7 +4,7 @@ import { Edit3, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { Button, EmptyState, Field, Input, LoadingBlock, Notice, PageHeader, SecondaryButton, Select, Textarea } from "@/components/ui";
-import { periods, weekdays } from "@/lib/date";
+import { currentWeekday, periods, weekdays } from "@/lib/date";
 import { supabase } from "@/lib/supabase";
 import type { ClassItem, Weekday } from "@/lib/types";
 
@@ -26,6 +26,9 @@ const initialForm: FormState = {
   memo: "",
 };
 
+const tableWeekdays = weekdays.filter((day) => day.value <= 5);
+const tablePeriods = periods.filter((period) => period <= 5);
+
 export default function TimetablePage() {
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [form, setForm] = useState<FormState>(initialForm);
@@ -34,6 +37,8 @@ export default function TimetablePage() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ tone: "success" | "error" | "info"; text: string } | null>(null);
+  const [selectedClass, setSelectedClass] = useState<ClassItem | null>(null);
+  const today = currentWeekday();
 
   async function load() {
     setLoading(true);
@@ -57,6 +62,7 @@ export default function TimetablePage() {
     setForm(initialForm);
     setEditingId(null);
     setMessage(null);
+    setSelectedClass(null);
     setIsOpen(true);
   }
 
@@ -71,6 +77,7 @@ export default function TimetablePage() {
     });
     setEditingId(item.id);
     setMessage(null);
+    setSelectedClass(null);
     setIsOpen(true);
   }
 
@@ -125,6 +132,7 @@ export default function TimetablePage() {
       return;
     }
     setMessage({ tone: "success", text: "授業を削除しました。" });
+    setSelectedClass(null);
     await load();
   }
 
@@ -135,7 +143,7 @@ export default function TimetablePage() {
           title="時間割"
           description="授業を登録して、週表示で確認できます。"
           action={
-            <Button onClick={startCreate} type="button">
+            <Button onClick={startCreate} className="hidden sm:inline-flex" type="button">
               <Plus size={18} />
               授業を追加
             </Button>
@@ -188,64 +196,89 @@ export default function TimetablePage() {
 
         {loading ? (
           <LoadingBlock label="時間割を読み込み中..." />
-        ) : classes.length === 0 ? (
-          <EmptyState title="授業がまだありません" description="まずは今学期の授業を1つ追加しましょう。" />
         ) : (
           <>
-            <div className="grid gap-3 md:hidden">
-              {classes.map((item) => (
-                <article key={item.id} className="rounded-2xl border border-blue-100 bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-bold text-[#2563EB]">{weekdays.find((day) => day.value === item.weekday)?.label}曜 {item.period}限</p>
-                      <h3 className="mt-1 text-lg font-bold tracking-tight text-[#0F172A]">{item.title}</h3>
-                      <p className="mt-1 text-sm leading-6 text-[#64748B]">{[item.room, item.teacher].filter(Boolean).join(" / ") || "教室・教員未設定"}</p>
-                      {item.memo && <p className="mt-2 text-sm leading-6 text-[#64748B]">{item.memo}</p>}
-                    </div>
-                  </div>
-                  <div className="mt-4 grid grid-cols-2 gap-2">
-                    <SecondaryButton onClick={() => startEdit(item)} className="min-h-11 px-3" type="button"><Edit3 size={16} />編集</SecondaryButton>
-                    <SecondaryButton onClick={() => remove(item.id)} className="min-h-11 px-3 text-red-600" type="button"><Trash2 size={16} />削除</SecondaryButton>
-                  </div>
-                </article>
-              ))}
-            </div>
-            <div className="hidden overflow-x-auto rounded-3xl border border-[#E5E7EB] bg-white shadow-[0_18px_42px_rgba(15,23,42,0.07)] md:block">
-              <div className="min-w-[760px]">
-              <div className="grid grid-cols-[72px_repeat(7,1fr)] border-b border-[#E5E7EB] bg-slate-50 text-center text-sm font-bold text-[#64748B]">
-                <div className="p-3">時限</div>
-                {weekdays.map((day) => <div key={day.value} className="p-3">{day.label}</div>)}
-              </div>
-              {periods.map((period) => (
-                <div key={period} className="grid grid-cols-[72px_repeat(7,1fr)] border-b border-slate-100 last:border-b-0">
-                  <div className="grid place-items-center bg-slate-50 p-2 text-sm font-bold text-[#64748B]">{period}限</div>
-                  {weekdays.map((day) => {
-                    const item = classes.find((entry) => entry.weekday === day.value && entry.period === period);
+            {classes.length === 0 && (
+              <EmptyState title="授業がまだありません" description="表の空き時間を見ながら、右下の追加ボタンから授業を登録できます。" />
+            )}
+
+            <div className="overflow-x-auto rounded-3xl border border-[#E5E7EB] bg-white shadow-[0_18px_42px_rgba(15,23,42,0.07)]">
+              <div className="min-w-[620px] md:min-w-[760px]">
+                <div className="grid grid-cols-[58px_repeat(5,1fr)] border-b border-[#E5E7EB] bg-white text-center text-sm font-bold text-[#64748B] md:grid-cols-[72px_repeat(5,1fr)]">
+                  <div className="sticky left-0 z-10 grid place-items-center border-r border-[#E5E7EB] bg-white p-2 md:p-3">時限</div>
+                  {tableWeekdays.map((day) => {
+                    const isToday = today === day.value;
                     return (
-                      <div key={day.value} className="min-h-32 border-l border-slate-100 p-2">
-                        {item && (
-                          <article className="grid h-full gap-2 rounded-2xl bg-blue-50 p-3 ring-1 ring-blue-100">
-                            <div>
-                              <h3 className="font-bold text-[#0F172A]">{item.title}</h3>
-                              <p className="mt-1 text-xs text-[#64748B]">{item.room || "教室未設定"}</p>
-                              <p className="text-xs text-[#64748B]">{item.teacher || "教員未設定"}</p>
-                            </div>
-                            <div className="flex gap-2 self-end">
-                              <SecondaryButton onClick={() => startEdit(item)} className="min-h-10 flex-1 px-2" type="button"><Edit3 size={16} /></SecondaryButton>
-                              <SecondaryButton onClick={() => remove(item.id)} className="min-h-10 flex-1 px-2 text-red-600" type="button"><Trash2 size={16} /></SecondaryButton>
-                            </div>
-                          </article>
-                        )}
+                      <div key={day.value} className={`p-2 md:p-3 ${isToday ? "bg-blue-50 text-[#2563EB]" : ""}`}>
+                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-1">
+                          {day.label}
+                          {isToday && <span className="text-[10px]">今日</span>}
+                        </span>
                       </div>
                     );
                   })}
                 </div>
-              ))}
+
+                {tablePeriods.map((period) => (
+                  <div key={period} className="grid grid-cols-[58px_repeat(5,1fr)] border-b border-slate-100 last:border-b-0 md:grid-cols-[72px_repeat(5,1fr)]">
+                    <div className="sticky left-0 z-10 grid min-h-24 place-items-center border-r border-[#E5E7EB] bg-white p-2 text-sm font-bold text-[#64748B] md:min-h-32">
+                      {period}限
+                    </div>
+                    {tableWeekdays.map((day) => {
+                      const item = classes.find((entry) => entry.weekday === day.value && entry.period === period);
+                      const isToday = today === day.value;
+                      return (
+                        <div key={day.value} className={`min-h-24 border-l border-slate-100 p-1.5 md:min-h-32 md:p-2 ${isToday ? "bg-blue-50/50" : "bg-white"}`}>
+                          {item ? (
+                            <button
+                              onClick={() => setSelectedClass(item)}
+                              className={`grid h-full w-full content-between rounded-2xl border p-2 text-left shadow-[0_8px_18px_rgba(15,23,42,0.04)] transition active:scale-[0.98] md:p-3 ${isToday ? "border-blue-200 bg-white ring-2 ring-blue-100" : "border-blue-100 bg-blue-50"}`}
+                              type="button"
+                            >
+                              <span>
+                                <span className="line-clamp-2 text-sm font-bold leading-5 text-[#0F172A] md:text-base">{item.title}</span>
+                                <span className="mt-1 block truncate text-xs font-semibold text-[#64748B]">{item.room || "教室未設定"}</span>
+                              </span>
+                              <span className="mt-2 text-[11px] font-bold text-[#2563EB]">タップして編集</span>
+                            </button>
+                          ) : (
+                            <div className="grid h-full place-items-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 text-sm font-bold text-slate-400">
+                              空き
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
               </div>
             </div>
+
+            {selectedClass && (
+              <section className="fixed inset-x-3 bottom-24 z-40 rounded-3xl border border-[#E5E7EB] bg-white p-4 shadow-[0_18px_50px_rgba(15,23,42,0.18)] md:static md:rounded-2xl md:shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold text-[#2563EB]">{weekdays.find((day) => day.value === selectedClass.weekday)?.label}曜 {selectedClass.period}限</p>
+                    <h2 className="mt-1 text-lg font-bold tracking-tight text-[#0F172A]">{selectedClass.title}</h2>
+                    <p className="mt-1 text-sm text-[#64748B]">{[selectedClass.room, selectedClass.teacher].filter(Boolean).join(" / ") || "教室・教員未設定"}</p>
+                  </div>
+                  <button onClick={() => setSelectedClass(null)} className="grid size-10 shrink-0 place-items-center rounded-xl text-[#64748B] hover:bg-slate-100" type="button">
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <SecondaryButton onClick={() => startEdit(selectedClass)} className="min-h-12 px-3" type="button"><Edit3 size={16} />編集</SecondaryButton>
+                  <SecondaryButton onClick={() => remove(selectedClass.id)} className="min-h-12 px-3 text-red-600" type="button"><Trash2 size={16} />削除</SecondaryButton>
+                </div>
+              </section>
+            )}
           </>
         )}
       </div>
+
+      <Button onClick={startCreate} className="fixed bottom-24 right-4 z-30 size-14 rounded-2xl p-0 shadow-[0_18px_38px_rgba(37,99,235,0.28)] sm:hidden" type="button" aria-label="授業を追加">
+        <Plus size={24} />
+      </Button>
     </AppShell>
   );
 }
