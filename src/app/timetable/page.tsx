@@ -4,9 +4,10 @@ import { Edit3, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { Button, EmptyState, Field, Input, LoadingBlock, Notice, PageHeader, SecondaryButton, Select, Textarea } from "@/components/ui";
+import { ensureCampusContext, visibleWeekdays } from "@/lib/campus";
 import { currentWeekday, periods, weekdays } from "@/lib/date";
 import { supabase } from "@/lib/supabase";
-import type { ClassItem, Weekday } from "@/lib/types";
+import type { ClassItem, Term, UserSettings, Weekday } from "@/lib/types";
 
 type FormState = {
   title: string;
@@ -26,8 +27,7 @@ const initialForm: FormState = {
   memo: "",
 };
 
-const tableWeekdays = weekdays.filter((day) => day.value <= 5);
-const tablePeriods = periods.filter((period) => period <= 5);
+const tablePeriods = periods.filter((period) => period <= 6);
 
 export default function TimetablePage() {
   const [classes, setClasses] = useState<ClassItem[]>([]);
@@ -38,24 +38,43 @@ export default function TimetablePage() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ tone: "success" | "error" | "info"; text: string } | null>(null);
   const [selectedClass, setSelectedClass] = useState<ClassItem | null>(null);
+  const [currentTerm, setCurrentTerm] = useState<Term | null>(null);
+  const [settings, setSettings] = useState<UserSettings | null>(null);
   const today = currentWeekday();
+  const tableWeekdays = weekdays.filter((day) => visibleWeekdays(settings?.show_saturday ?? false).includes(day.value));
+  const formWeekdays = weekdays.filter((day) => day.value <= 5 || settings?.show_saturday || form.weekday === day.value);
 
   async function load() {
     setLoading(true);
-    const { data, error } = await supabase.from("classes").select("*").order("weekday").order("period");
-    if (error) {
-      console.error("Failed to load classes", error);
-      setMessage({ tone: "error", text: `時間割の読み込みに失敗しました: ${error.message}` });
-      setClasses([]);
-    } else {
+    try {
+      const context = await ensureCampusContext();
+      setCurrentTerm(context.currentTerm);
+      setSettings(context.settings);
+
+      const { data, error } = await supabase
+        .from("classes")
+        .select("*")
+        .eq("term_id", context.currentTerm.id)
+        .order("weekday")
+        .order("period");
+      if (error) throw error;
       setClasses(data ?? []);
+    } catch (error) {
+      console.error("Failed to load classes", error);
+      setMessage({ tone: "error", text: `時間割の読み込みに失敗しました: ${getErrorMessage(error)}` });
+      setClasses([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0);
-    return () => window.clearTimeout(timer);
+    window.addEventListener("campus-settings-change", load);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("campus-settings-change", load);
+    };
   }, []);
 
   function startCreate() {
@@ -87,12 +106,11 @@ export default function TimetablePage() {
     setMessage(null);
 
     try {
-      const { data: userData, error: userError } = await supabase.auth.getUser();
-      if (userError) throw userError;
-      if (!userData.user) throw new Error("ログイン中のユーザーIDを取得できませんでした。もう一度ログインしてください。");
+      const context = await ensureCampusContext();
 
       const payload = {
         title: form.title.trim(),
+        term_id: context.currentTerm.id,
         weekday: form.weekday,
         period: form.period,
         room: form.room.trim() || null,
@@ -107,7 +125,7 @@ export default function TimetablePage() {
         if (error) throw error;
         setMessage({ tone: "success", text: "授業を更新しました。" });
       } else {
-        const { error } = await supabase.from("classes").insert({ ...payload, user_id: userData.user.id }).select("id").single();
+        const { error } = await supabase.from("classes").insert({ ...payload, user_id: context.userId }).select("id").single();
         if (error) throw error;
         setMessage({ tone: "success", text: "授業を追加しました。" });
       }
@@ -141,12 +159,16 @@ export default function TimetablePage() {
       <div className="grid gap-6">
         <PageHeader
           title="時間割"
-          description="授業を登録して、週表示で確認できます。"
+          description={`${currentTerm?.name ?? "選択中の学期"}の授業だけを表示しています。`}
           action={
-            <Button onClick={startCreate} className="hidden sm:inline-flex" type="button">
-              <Plus size={18} />
-              授業を追加
-            </Button>
+            <div className="hidden gap-2 sm:flex">
+              <SecondaryButton onClick={() => location.assign("/templates")} type="button">テンプレから追加</SecondaryButton>
+              <Button onClick={() => location.assign("/templates/new")} type="button">テンプレ化</Button>
+              <Button onClick={startCreate} type="button">
+                <Plus size={18} />
+                授業を追加
+              </Button>
+            </div>
           }
         />
 
@@ -166,7 +188,7 @@ export default function TimetablePage() {
               </Field>
               <Field label="曜日">
                 <Select value={form.weekday} onChange={(event) => setForm({ ...form, weekday: Number(event.target.value) as Weekday })}>
-                  {weekdays.map((day) => (
+                  {formWeekdays.map((day) => (
                     <option key={day.value} value={day.value}>{day.label}曜日</option>
                   ))}
                 </Select>

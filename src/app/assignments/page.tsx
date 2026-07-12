@@ -4,9 +4,10 @@ import { Check, Edit3, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { Button, EmptyState, Field, Input, LoadingBlock, Notice, PageHeader, SecondaryButton, Select, Textarea } from "@/components/ui";
+import { ensureCampusContext } from "@/lib/campus";
 import { getDeadlineTone, isNotificationCandidate, todayKey } from "@/lib/date";
 import { supabase } from "@/lib/supabase";
-import type { Assignment, ClassItem, Priority } from "@/lib/types";
+import type { Assignment, ClassItem, Priority, Term } from "@/lib/types";
 
 type FormState = {
   title: string;
@@ -35,28 +36,36 @@ export default function AssignmentsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ tone: "success" | "error" | "info"; text: string } | null>(null);
+  const [currentTerm, setCurrentTerm] = useState<Term | null>(null);
 
   async function load() {
     setLoading(true);
-    const [{ data: assignmentData, error: assignmentError }, { data: classData, error: classError }] = await Promise.all([
-      supabase.from("assignments").select("*, classes(id,title)").order("due_date"),
-      supabase.from("classes").select("*").order("weekday").order("period"),
-    ]);
-    if (assignmentError || classError) {
-      console.error("Failed to load assignments page data", { assignmentError, classError });
-      setMessage({ tone: "error", text: `データの読み込みに失敗しました: ${assignmentError?.message ?? classError?.message}` });
-      setAssignments([]);
-      setClasses([]);
-    } else {
+    try {
+      const context = await ensureCampusContext();
+      setCurrentTerm(context.currentTerm);
+      const [{ data: assignmentData, error: assignmentError }, { data: classData, error: classError }] = await Promise.all([
+        supabase.from("assignments").select("*, classes(id,title)").eq("term_id", context.currentTerm.id).order("due_date"),
+        supabase.from("classes").select("*").eq("term_id", context.currentTerm.id).order("weekday").order("period"),
+      ]);
+      if (assignmentError || classError) throw assignmentError ?? classError;
       setAssignments((assignmentData as Assignment[]) ?? []);
       setClasses(classData ?? []);
+    } catch (error) {
+      console.error("Failed to load assignments page data", error);
+      setMessage({ tone: "error", text: `データの読み込みに失敗しました: ${getErrorMessage(error)}` });
+      setAssignments([]);
+      setClasses([]);
     }
     setLoading(false);
   }
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0);
-    return () => window.clearTimeout(timer);
+    window.addEventListener("campus-settings-change", load);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("campus-settings-change", load);
+    };
   }, []);
 
   function startCreate() {
@@ -86,12 +95,11 @@ export default function AssignmentsPage() {
     setMessage(null);
 
     try {
-      const { data: userData, error: userError } = await supabase.auth.getUser();
-      if (userError) throw userError;
-      if (!userData.user) throw new Error("ログイン中のユーザーIDを取得できませんでした。もう一度ログインしてください。");
+      const context = await ensureCampusContext();
 
       const payload = {
         title: form.title.trim(),
+        term_id: context.currentTerm.id,
         class_id: form.class_id || null,
         due_date: form.due_date,
         priority: form.priority,
@@ -106,7 +114,7 @@ export default function AssignmentsPage() {
         if (error) throw error;
         setMessage({ tone: "success", text: "課題を更新しました。" });
       } else {
-        const { error } = await supabase.from("assignments").insert({ ...payload, user_id: userData.user.id }).select("id").single();
+        const { error } = await supabase.from("assignments").insert({ ...payload, user_id: context.userId }).select("id").single();
         if (error) throw error;
         setMessage({ tone: "success", text: "課題を追加しました。" });
       }
@@ -148,7 +156,7 @@ export default function AssignmentsPage() {
       <div className="grid gap-6">
         <PageHeader
           title="課題管理"
-          description="締切が近い順に課題を確認できます。"
+          description={`${currentTerm?.name ?? "選択中の学期"}の課題を締切が近い順に表示します。`}
           action={
             <Button onClick={startCreate} type="button">
               <Plus size={18} />

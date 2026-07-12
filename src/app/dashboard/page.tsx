@@ -4,35 +4,47 @@ import { AlertCircle, CalendarDays, CheckCircle2, Clock3 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { EmptyState, LoadingBlock, Notice, PageHeader } from "@/components/ui";
+import { ensureCampusContext } from "@/lib/campus";
 import { classesForToday, getDaysUntil, getDeadlineTone, isNotificationCandidate } from "@/lib/date";
+import { notifyAssignmentsIfNeeded } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
-import type { Assignment, ClassItem } from "@/lib/types";
+import type { Assignment, ClassItem, Term, UserSettings } from "@/lib/types";
 
 export default function DashboardPage() {
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
+  const [currentTerm, setCurrentTerm] = useState<Term | null>(null);
+  const [settings, setSettings] = useState<UserSettings | null>(null);
 
   useEffect(() => {
     async function load() {
       setLoading(true);
-      const [{ data: classData, error: classError }, { data: assignmentData, error: assignmentError }] = await Promise.all([
-        supabase.from("classes").select("*").order("weekday").order("period"),
-        supabase.from("assignments").select("*, classes(id,title)").order("due_date"),
-      ]);
-      if (classError || assignmentError) {
-        console.error("Failed to load dashboard", { classError, assignmentError });
-        setMessage(`ダッシュボードの読み込みに失敗しました: ${classError?.message ?? assignmentError?.message}`);
+      try {
+        const context = await ensureCampusContext();
+        setCurrentTerm(context.currentTerm);
+        setSettings(context.settings);
+        const [{ data: classData, error: classError }, { data: assignmentData, error: assignmentError }] = await Promise.all([
+          supabase.from("classes").select("*").eq("term_id", context.currentTerm.id).order("weekday").order("period"),
+          supabase.from("assignments").select("*, classes(id,title)").eq("term_id", context.currentTerm.id).order("due_date"),
+        ]);
+        if (classError || assignmentError) throw classError ?? assignmentError;
+        const loadedAssignments = (assignmentData as Assignment[]) ?? [];
+        setClasses(classData ?? []);
+        setAssignments(loadedAssignments);
+        notifyAssignmentsIfNeeded(loadedAssignments, context.settings.notifications_enabled);
+      } catch (error) {
+        console.error("Failed to load dashboard", error);
+        setMessage(`ダッシュボードの読み込みに失敗しました: ${error instanceof Error ? error.message : "詳細不明のエラーです"}`);
         setClasses([]);
         setAssignments([]);
-      } else {
-        setClasses(classData ?? []);
-        setAssignments((assignmentData as Assignment[]) ?? []);
       }
       setLoading(false);
     }
     load();
+    window.addEventListener("campus-settings-change", load);
+    return () => window.removeEventListener("campus-settings-change", load);
   }, []);
 
   const todayClasses = useMemo(() => classesForToday(classes), [classes]);
@@ -45,9 +57,12 @@ export default function DashboardPage() {
   return (
     <AppShell>
       <div className="grid gap-6">
-        <PageHeader title="ダッシュボード" description="今日の授業と直近の課題を確認できます。" />
+        <PageHeader title="ダッシュボード" description={`${currentTerm?.name ?? "選択中の学期"}の今日やることを確認できます。`} />
 
         {message && <Notice tone="error">{message}</Notice>}
+        {settings?.notifications_enabled && typeof Notification !== "undefined" && Notification.permission !== "granted" && (
+          <Notice tone="info">通知はONですが、ブラウザ通知がまだ許可されていません。設定ページから許可できます。</Notice>
+        )}
 
         {loading ? (
           <LoadingBlock label="ダッシュボードを読み込み中..." />
